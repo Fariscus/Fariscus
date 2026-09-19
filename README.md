@@ -28,7 +28,7 @@
 
 ## This is me :)
 
-Hi, I’m **Faris (Kris)** — a third-year Computer Science student at
+Hi, I’m **Faris Fy(Kris)** — a third-year Computer Science student at
 **Paragon International University**, building toward a career in software engineering.
 
 - Focused on **backend engineering**: APIs, databases, and services that stay understandable as they grow.
