@@ -139,33 +139,6 @@ Hi, I’m **Faris Fy(Kris)** — a third-year Computer Science student at
 
 </div>
 
----
-
-## current learning direction
-
-```text
-Backend Engineering
-        ↓
-   Spring Boot
-        ↓
-    REST APIs
-        ↓
-   PostgreSQL
-        ↓
-     Docker
-        ↓
-     Linux
-        ↓
-  AWS / Cloud
-        ↓
-  System Design
-        ↓
-  AI / AI Agents
-```
-
-This is my learning roadmap — not a claim of professional expertise.
-
----
 
 <div align="center">
 
