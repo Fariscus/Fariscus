@@ -9,9 +9,9 @@
 
 <br>
 
-<!-- Animated tagline -->
+<!-- Animated tagline — width must fit the longest line (was clipping "Engineer") -->
 <a href="https://github.com/Fariscus">
-  <img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=600&size=26&duration=2600&pause=900&color=2DD4BF&center=true&vCenter=true&width=880&lines=Faris+%2F+Kris+-+Computer+Science+Student;Aspiring+Software+Engineer;Backend+%C2%B7+Cloud+%C2%B7+AI+Agents" alt="typing banner">
+  <img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=600&size=22&duration=2600&pause=900&color=2DD4BF&center=true&vCenter=true&width=1000&height=45&lines=Faris+%2F+Kris+%E2%80%94+CS+Student;Aspiring+Software+Engineer;Backend+%C2%B7+Cloud+%C2%B7+AI+Agents" alt="typing banner">
 </a>
 
 <br>
