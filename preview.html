@@ -1,30 +1,92 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Faris / Kris — profile preview</title>
-    <style>
-      :root { color-scheme: light dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
-      body { max-width: 1000px; margin: 2rem auto; padding: 0 1.25rem; background: Canvas; color: CanvasText; }
-      section { margin: 2rem 0; } .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; }
-      img { max-width: 100%; height: auto; } .photo { width: 170px; border-radius: 16px; }
-      .stack { line-height: 1.8; padding: 1rem; border: 1px solid color-mix(in srgb, CanvasText 20%, transparent); border-radius: 14px; }
-    </style>
-  </head>
-  <body>
-    <main>
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
-        <img src="assets/banner-light.svg" alt="Faris profile banner">
-      </picture>
-      <section class="grid">
-        <div><h1>This is me</h1><p>Faris / Kris is a third-year Computer Science student at Paragon International University, learning through backend, cloud, and AI-focused projects.</p></div>
-        <img class="photo" src="assets/source/profile.png" alt="Portrait of Faris">
-      </section>
-      <section><h2>My perfect stack</h2><div class="stack">Java · C++ · Python · PHP · JavaScript · TypeScript<br>Spring Boot · Laravel · React<br>MySQL · PostgreSQL · Docker · Git · GitHub<br><strong>Learning:</strong> Linux · AWS · Redis · CI/CD</div></section>
-      <section><h2>Signals</h2><div class="grid"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/radar-dark.svg"><img src="assets/radar-light.svg" alt="Skill radar"></picture><picture><source media="(prefers-color-scheme: dark)" srcset="assets/radar-langs-dark.svg"><img src="assets/radar-langs-light.svg" alt="Language radar"></picture></div></section>
-      <section><h2>Statistics</h2><div class="grid"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/card-stats-dark.svg"><img src="assets/card-stats-light.svg" alt="GitHub statistics"></picture><img src="assets/metrics.languages.svg" alt="Most-used languages"></div></section>
-    </main>
-  </body>
-</html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Faris profile assets — local preview</title>
+<style>
+  :root { color-scheme: dark light }
+  body {
+    background: #0d1117; color: #c9d1d9;
+    font: 15px/1.5 ui-sans-serif, Segoe UI, system-ui, sans-serif;
+    margin: 0; padding: 40px;
+  }
+  h1 { font-size: 20px; color: #2dd4bf; letter-spacing: .02em }
+  h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: #8b949e;
+    border-bottom: 1px solid #21262d; padding-bottom: 8px; margin: 44px 0 18px;
+  }
+  .row { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start }
+  .card { background: #0d1117; border: 1px solid #21262d; border-radius: 10px; padding: 18px }
+  .card.light { background: #fff }
+  .tag { font: 11px ui-monospace, Consolas, monospace; color: #8b949e; display: block; margin-bottom: 10px }
+  img { display: block; max-width: 100% }
+  .intro { max-width: 720px; color: #8b949e }
+  .stack {
+    padding: 14px 16px; border: 1px solid #30363d; border-radius: 10px;
+    font-family: ui-monospace, monospace; font-size: 13px; line-height: 1.7;
+  }
+  button {
+    background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px;
+    padding: 5px 12px; font: inherit; font-size: 12px; cursor: pointer; margin-left: 14px;
+  }
+  button:hover { border-color: #2dd4bf; color: #2dd4bf }
+</style>
+
+<h1>Faris / Kris — profile assets preview</h1>
+<p class="intro">Open this file locally after running <code>python scripts/generate.py</code>. Dark and light cards mirror how GitHub renders <code>&lt;picture&gt;</code> assets.</p>
+
+<h2>banner <button id="replay-banner" type="button">replay</button></h2>
+<div class="row">
+  <div class="card"><span class="tag">banner-dark.svg</span>
+    <img class="banner" data-base="assets/banner-dark.svg" src="assets/banner-dark.svg" width="880" alt="dark banner"></div>
+  <div class="card light"><span class="tag" style="color:#57606a">banner-light.svg</span>
+    <img class="banner" data-base="assets/banner-light.svg" src="assets/banner-light.svg" width="880" alt="light banner"></div>
+</div>
+
+<h2>introduction</h2>
+<div class="card" style="max-width:720px">
+  <p><strong>Faris / Kris</strong> — third-year Computer Science student at Paragon International University.</p>
+  <p>Aspiring software engineer focused on backend engineering, exploring cloud systems and AI agents through projects.</p>
+</div>
+
+<h2>technology stack</h2>
+<div class="stack">
+  Languages: Java · C++ · Python · PHP · JavaScript · TypeScript<br>
+  Backend: Spring Boot · Laravel<br>
+  Frontend: React<br>
+  Database: MySQL · PostgreSQL<br>
+  Infra: Docker · Git · GitHub<br>
+  Learning: Linux · AWS · Redis · CI/CD
+</div>
+
+<h2>skill radar</h2>
+<div class="row">
+  <div class="card"><span class="tag">radar-dark.svg</span><img src="assets/radar-dark.svg" width="440" alt="skill radar dark"></div>
+  <div class="card light"><span class="tag" style="color:#57606a">radar-light.svg</span><img src="assets/radar-light.svg" width="440" alt="skill radar light"></div>
+</div>
+
+<h2>language radar</h2>
+<div class="row">
+  <div class="card"><span class="tag">radar-langs-dark.svg</span><img src="assets/radar-langs-dark.svg" width="440" alt="language radar dark"></div>
+  <div class="card light"><span class="tag" style="color:#57606a">radar-langs-light.svg</span><img src="assets/radar-langs-light.svg" width="440" alt="language radar light"></div>
+</div>
+
+<h2>statistics</h2>
+<div class="row">
+  <div class="card"><span class="tag">card-stats-dark.svg</span><img src="assets/card-stats-dark.svg" width="480" alt="stats dark"></div>
+  <div class="card light"><span class="tag" style="color:#57606a">card-stats-light.svg</span><img src="assets/card-stats-light.svg" width="480" alt="stats light"></div>
+</div>
+
+<h2>most-used languages</h2>
+<div class="card light" style="max-width:520px">
+  <span class="tag" style="color:#57606a">metrics.languages.svg</span>
+  <img src="assets/metrics.languages.svg" width="480" alt="languages">
+</div>
+
+<script>
+  document.getElementById("replay-banner").onclick = () => {
+    document.querySelectorAll("img.banner").forEach((img) => {
+      img.src = img.dataset.base + "?" + Date.now();
+    });
+  };
+</script>

@@ -1,6 +1,6 @@
 {
-  "title": "Programming language signals",
-  "_comment": "Self-assessed learning levels (0–100), not professional proficiency claims.",
+  "title": "Language Stack",
+  "_comment": "Self-assessed learning levels (0–100). Not professional proficiency claims.",
   "axes": [
     { "label": "Java", "value": 85 },
     { "label": "C++", "value": 75 },

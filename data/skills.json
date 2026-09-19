@@ -1,6 +1,6 @@
 {
-  "title": "Learning signals",
-  "_comment": "Self-assessed learning levels (0–100), not professional proficiency claims.",
+  "title": "Skill Radar",
+  "_comment": "Self-assessed learning levels (0–100). Not professional proficiency claims.",
   "axes": [
     { "label": "Backend", "value": 85 },
     { "label": "Programming", "value": 85 },

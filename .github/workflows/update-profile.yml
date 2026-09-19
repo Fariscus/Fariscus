@@ -1,0 +1,63 @@
+name: Update profile assets
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly Monday 03:17 UTC — enough for fresh stats, not noisy.
+    - cron: "17 3 * * 1"
+  push:
+    branches: [main]
+    paths:
+      - "data/**"
+      - "scripts/**"
+      - ".github/workflows/update-profile.yml"
+
+# Minimum permissions:
+# - contents: write → commit regenerated SVG assets back to this repository only
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Generate banner
+        run: python scripts/banner/generate.py
+
+      - name: Generate portrait frames
+        run: python scripts/dotify.py
+
+      - name: Generate skill radar
+        run: python scripts/radar.py --data data/skills.json -o assets/radar
+
+      - name: Generate language radar
+        run: python scripts/radar.py --data data/langmix.json -o assets/radar-langs --values
+
+      - name: Generate GitHub stats and project cards
+        env:
+          # Built-in short-lived token. Never committed. Enables GraphQL contribution tiles when allowed.
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >
+          python scripts/cards.py
+          --user Fariscus
+          --projects data/projects.json
+          --out assets
+
+      - name: Commit generated assets
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/*.svg
+          git diff --cached --quiet || git commit -m "chore: refresh profile assets"
+          git push

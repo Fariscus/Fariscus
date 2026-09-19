@@ -1,8 +1,0 @@
-{
-  "_comment": "Real public repositories to feature. Keep descriptions null to use GitHub's own repository description.",
-  "projects": [
-    { "repo": "Supplier-and-Procurement-System-Project", "description": null },
-    { "repo": "ns-3-Dijstra-s-Algorithm-Project-", "description": null },
-    { "repo": "LibaryManagement", "description": null }
-  ]
-}

@@ -1,0 +1,17 @@
+{
+  "_comment": "Featured public repos in README order. description: null uses GitHub's own description.",
+  "projects": [
+    {
+      "repo": "Supplier-and-Procurement-System-Project",
+      "description": "Supplier and procurement workflow system built as a course/project learning exercise."
+    },
+    {
+      "repo": "ns-3-Dijstra-s-Algorithm-Project-",
+      "description": "Network simulation project exploring Dijkstra routing with ns-3."
+    },
+    {
+      "repo": "LibaryManagement",
+      "description": "Library management practice project focused on CRUD workflows and Java fundamentals."
+    }
+  ]
+}

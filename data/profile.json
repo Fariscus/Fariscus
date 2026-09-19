@@ -1,0 +1,19 @@
+{
+  "username": "Fariscus",
+  "display_name": "Faris / Kris",
+  "university": "Paragon International University",
+  "major": "Computer Science",
+  "level": "Third-year student",
+  "goal": "Aspiring Software Engineer",
+  "focus": ["Backend Engineering", "Cloud Engineering", "AI / AI Agents"],
+  "timezone": "Cambodia / UTC+7",
+  "github_url": "https://github.com/Fariscus",
+  "stack": {
+    "languages": ["java", "cpp", "python", "php", "js", "ts"],
+    "backend": ["spring", "laravel"],
+    "frontend": ["react"],
+    "database": ["mysql", "postgres"],
+    "infra": ["docker", "git", "github"],
+    "learning": ["Linux", "AWS", "Redis", "CI/CD", "System Design", "Kubernetes", "Distributed Systems", "AI Agents"]
+  }
+}
