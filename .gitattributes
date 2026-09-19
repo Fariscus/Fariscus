@@ -1,2 +1,5 @@
 *.svg linguist-generated=true
 assets/source/profile.png binary
+assets/source/FarisFy5.png binary
+scripts/banner/data/*.npy binary
+scripts/banner/logos/*.png binary
