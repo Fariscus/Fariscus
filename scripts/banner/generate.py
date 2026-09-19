@@ -36,15 +36,18 @@ ROWS = [
     ("Subject", "Faris / Kris"),
     ("Role", "CS Student · Aspiring SWE"),
     ("Origin", "Cambodia"),
-    ("Education", "Paragon IU"),
+    ("Education", "Paragon IU · CS"),
     ("Status", "Building + Learning + Shipping"),
     ("ToolChain", "Cursor · Git · Docker"),
     ("Core.Lang", "Java · Python · C++ · TS"),
     ("Core.Frontend", "React · JavaScript"),
     ("Core.Backend", "Spring Boot · Laravel"),
     ("Core.Database", "MySQL · PostgreSQL"),
-    ("Core.Infra", "Docker · GitHub"),
+    ("Core.Infra", "Docker · GitHub · Linux"),
+    ("Grid.Mail", "—"),
+    ("Grid.LinkedIn", "/in/faris-fy"),
     ("Grid.GitHub", "Fariscus"),
+    ("Grid.X", "—"),
 ]
 
 THEMES = {
@@ -142,22 +145,40 @@ def floyd_steinberg(gray: np.ndarray) -> np.ndarray:
 
 
 def subject_crop() -> Image.Image:
-    """Tight head crop from the cutout (ignores empty transparent padding)."""
+    """Full head-and-shoulders cutout, centered in the 300×340 VISUAL.MAP lattice."""
     source = Image.open(SOURCE).convert("RGBA")
     alpha = np.asarray(source.getchannel("A"))
     ys, xs = np.where(alpha > 20)
     if len(xs) == 0:
         raise SystemExit(f"No opaque pixels in {SOURCE}")
-    pad = 8
+    pad = 4
     x0 = max(0, int(xs.min()) - pad)
     y0 = max(0, int(ys.min()) - pad)
     x1 = min(source.size[0], int(xs.max()) + pad)
     y1 = min(source.size[1], int(ys.max()) + pad)
-    content = source.crop((x0, y0, x1, y1))
-    cw, ch = content.size
-    # Include full chin + a bit of neck (0.62 was clipping the jaw).
-    box = (int(cw * 0.05), 0, int(cw * 0.95), int(ch * 0.80))
-    return content.crop(box).resize((300, 340), Image.Resampling.LANCZOS)
+    # Use the full subject (hair → shoulders/chest), not a tight face crop.
+    head = source.crop((x0, y0, x1, y1))
+
+    tw, th = 300, 340
+    hw, hh = head.size
+    # Fill the VISUAL.MAP frame — small padding only.
+    scale = min(tw / hw, th / hh) * 0.99
+    nw, nh = max(1, int(round(hw * scale))), max(1, int(round(hh * scale)))
+    resized = head.resize((nw, nh), Image.Resampling.LANCZOS)
+
+    a = np.asarray(resized.getchannel("A"))
+    ys, xs = np.where(a > 20)
+    if len(xs):
+        cx = (xs.min() + xs.max()) / 2.0
+        cy = (ys.min() + ys.max()) / 2.0
+        ox = int(round(tw / 2 - cx))
+        oy = int(round(th / 2 - cy))
+    else:
+        ox, oy = (tw - nw) // 2, (th - nh) // 2
+
+    canvas = Image.new("RGBA", (tw, th), (0, 0, 0, 0))
+    canvas.paste(resized, (ox, oy), resized)
+    return canvas
 
 
 def portrait_points(theme: str, rng: np.random.Generator) -> np.ndarray:
@@ -176,12 +197,28 @@ def portrait_points(theme: str, rng: np.random.Generator) -> np.ndarray:
         prepared = prepared.filter(ImageFilter.UnsharpMask(radius=2, percent=160, threshold=1))
         select_lit = True
     else:
+        # Same light-theme pipeline as the sample: white paper + autocontrast + FS.
+        # (Earlier ink-crush made a solid blob; this keeps face detail like Emmi.)
         white = Image.new("RGBA", crop.size, "white")
         white.alpha_composite(crop)
-        prepared = ImageOps.grayscale(white.convert("RGB"))
+        gray = np.asarray(ImageOps.grayscale(white.convert("RGB")), dtype=np.float32)
+        mask = alpha > 0.08
+        # Soften pale gray shirt so clothing still prints dots without crushing face.
+        rgb = np.asarray(crop.convert("RGB"), dtype=np.float32)
+        r, g, b = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
+        max_c = np.maximum(np.maximum(r, g), b)
+        min_c = np.minimum(np.minimum(r, g), b)
+        sat = (max_c - min_c) / np.maximum(max_c, 1.0)
+        shirt = mask & (sat < 0.14) & (gray > 120)
+        gray = gray.copy()
+        gray[shirt] *= 0.72
+        gray = np.where(mask, gray, 255.0)
+        prepared = Image.fromarray(np.uint8(np.clip(gray, 0, 255)))
         prepared = ImageOps.autocontrast(prepared, cutoff=1)
-        prepared = ImageEnhance.Contrast(prepared).enhance(1.35)
-        prepared = prepared.filter(ImageFilter.UnsharpMask(radius=2, percent=175, threshold=1))
+        prepared = ImageEnhance.Contrast(prepared).enhance(1.45)
+        prepared = prepared.filter(ImageFilter.UnsharpMask(radius=2, percent=185, threshold=1))
+        arr = np.asarray(prepared).astype(np.float32)
+        prepared = Image.fromarray(np.uint8(np.where(mask, arr, 255.0)))
         select_lit = False
     bits = floyd_steinberg(np.asarray(prepared))
     active = bits if select_lit else ~bits
@@ -195,6 +232,11 @@ def portrait_points(theme: str, rng: np.random.Generator) -> np.ndarray:
     if len(xs) == 0:
         return np.zeros((0, 2), dtype=np.float32)
     points = np.column_stack((74 + xs, 154 + ys)).astype(np.float32)
+    # Nudge so the silhouette bbox sits in the middle of VISUAL.MAP.
+    cell_cx, cell_cy = 74 + 150.0, 154 + 170.0
+    bx = (points[:, 0].min() + points[:, 0].max()) / 2.0
+    by = (points[:, 1].min() + points[:, 1].max()) / 2.0
+    points = points + np.array([cell_cx - bx, cell_cy - by], dtype=np.float32)
     if len(points) > MAX_PORTRAIT_POINTS:
         points = points[rng.choice(len(points), MAX_PORTRAIT_POINTS, replace=False)]
     return points
@@ -237,9 +279,11 @@ def animate_values(points: list[np.ndarray], index: int) -> str:
 
 
 def render_info_rows(colors: dict[str, str]) -> str:
+    # Match sample layout: labels left, values right, leaders fill the gap.
     value_right = 1127.0
     label_x = 491.0
     row_y = 153.0
+    row_step = 23.0
     parts: list[str] = []
     for label, value in ROWS:
         max_value = value_right - label_x - text_width(label, 14) - 40
@@ -257,7 +301,7 @@ def render_info_rows(colors: dict[str, str]) -> str:
             f'font-family="{FONT}" font-size="14" textLength="{value_len:.1f}" '
             f'lengthAdjust="spacingAndGlyphs">{html.escape(value)}</text>'
         )
-        row_y += 23.0
+        row_y += row_step
     return "".join(parts)
 
 
