@@ -1,0 +1,13 @@
+{
+  "title": "Learning signals",
+  "_comment": "Self-assessed learning levels (0–100), not professional proficiency claims.",
+  "axes": [
+    { "label": "Backend", "value": 85 },
+    { "label": "Programming", "value": 85 },
+    { "label": "Database", "value": 80 },
+    { "label": "Cloud", "value": 60 },
+    { "label": "DevOps", "value": 55 },
+    { "label": "AI", "value": 60 },
+    { "label": "Frontend", "value": 60 }
+  ]
+}

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Faris / Kris — profile preview</title>
+    <style>
+      :root { color-scheme: light dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+      body { max-width: 1000px; margin: 2rem auto; padding: 0 1.25rem; background: Canvas; color: CanvasText; }
+      section { margin: 2rem 0; } .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; }
+      img { max-width: 100%; height: auto; } .photo { width: 170px; border-radius: 16px; }
+      .stack { line-height: 1.8; padding: 1rem; border: 1px solid color-mix(in srgb, CanvasText 20%, transparent); border-radius: 14px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
+        <img src="assets/banner-light.svg" alt="Faris profile banner">
+      </picture>
+      <section class="grid">
+        <div><h1>This is me</h1><p>Faris / Kris is a third-year Computer Science student at Paragon International University, learning through backend, cloud, and AI-focused projects.</p></div>
+        <img class="photo" src="assets/source/profile.png" alt="Portrait of Faris">
+      </section>
+      <section><h2>My perfect stack</h2><div class="stack">Java · C++ · Python · PHP · JavaScript · TypeScript<br>Spring Boot · Laravel · React<br>MySQL · PostgreSQL · Docker · Git · GitHub<br><strong>Learning:</strong> Linux · AWS · Redis · CI/CD</div></section>
+      <section><h2>Signals</h2><div class="grid"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/radar-dark.svg"><img src="assets/radar-light.svg" alt="Skill radar"></picture><picture><source media="(prefers-color-scheme: dark)" srcset="assets/radar-langs-dark.svg"><img src="assets/radar-langs-light.svg" alt="Language radar"></picture></div></section>
+      <section><h2>Statistics</h2><div class="grid"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/card-stats-dark.svg"><img src="assets/card-stats-light.svg" alt="GitHub statistics"></picture><img src="assets/metrics.languages.svg" alt="Most-used languages"></div></section>
+    </main>
+  </body>
+</html>

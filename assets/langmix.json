@@ -1,0 +1,12 @@
+{
+  "title": "Programming language signals",
+  "_comment": "Self-assessed learning levels (0–100), not professional proficiency claims.",
+  "axes": [
+    { "label": "Java", "value": 85 },
+    { "label": "C++", "value": 75 },
+    { "label": "Python", "value": 75 },
+    { "label": "PHP", "value": 70 },
+    { "label": "JavaScript", "value": 70 },
+    { "label": "TypeScript", "value": 60 }
+  ]
+}

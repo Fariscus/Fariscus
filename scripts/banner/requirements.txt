@@ -1,0 +1,1 @@
+# No packages required: this banner generator uses Python's standard library.
