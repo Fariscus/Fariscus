@@ -15,7 +15,7 @@ for theme, colors in {
 <rect width="360" height="360" rx="24" fill="{bg}"/>
 <circle cx="180" cy="180" r="143" fill="none" stroke="{accent}" stroke-width="2" stroke-dasharray="3 8"/>
 <clipPath id="portrait"><circle cx="180" cy="180" r="132"/></clipPath>
-<image href="source/FarisFy5.png" x="65" y="24" width="230" height="300" preserveAspectRatio="xMidYMin slice" clip-path="url(#portrait)"/>
+<image href="source/farisfyyy.png" x="65" y="24" width="230" height="300" preserveAspectRatio="xMidYMin slice" clip-path="url(#portrait)"/>
 </svg>
 '''
     (ASSETS / f"portrait-{theme}.svg").write_text(svg, encoding="utf-8")

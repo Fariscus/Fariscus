@@ -1,5 +1,14 @@
 *.svg linguist-generated=true
 assets/source/profile.png binary
 assets/source/FarisFy5.png binary
+assets/source/faris-portrait.jpg binary
+assets/source/farisfyyy.png binary
 scripts/banner/data/*.npy binary
 scripts/banner/logos/*.png binary
+scripts/banner/data/preview-dither-*.png binary
+scripts/banner/data/*-preview-*.png binary
+scripts/banner/data/v2-*.png binary
+scripts/banner/data/crop-*.png binary
+scripts/banner/data/dither-*.png binary
+scripts/banner/data/content-bbox.png binary
+scripts/banner/data/final-preview-*.png binary

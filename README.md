@@ -4,7 +4,7 @@
 <picture>
   <source media="(prefers-color-scheme: dark)"  srcset="assets/banner-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="assets/banner-light.svg">
-  <img src="assets/banner-dark.svg" width="100%" alt="faris.profile — learning mode">
+  <img src="assets/banner-dark.svg" width="100%" alt="profile.sh --live">
 </picture>
 
 <br>

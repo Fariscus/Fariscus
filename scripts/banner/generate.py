@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Generate Faris's animated profile banners.
 
-Portrait (FarisFy5.png) ↔ code </> silhouette loop in VISUAL.MAP.
-Layout matches the terminal dashboard structure; identity is Faris-only.
+Loop (two states only):
+  portrait (farisfyyy.png)  →  </>  (dev)  →  portrait
 
 Run from repo root:
     python scripts/banner/generate.py
@@ -11,7 +11,6 @@ Run from repo root:
 from __future__ import annotations
 
 import html
-import math
 from pathlib import Path
 
 import numpy as np
@@ -20,29 +19,29 @@ from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import cdist
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / "assets/source/FarisFy5.png"
+SOURCE = ROOT / "assets/source/farisfyyy.png"
 ASSETS = ROOT / "assets"
 LOGOS = Path(__file__).resolve().parent / "logos"
 DATA = Path(__file__).resolve().parent / "data"
 
 W, H = 1180, 610
-LOOP_SECONDS = 12.0
-INTRO_SECONDS = 2.8
-TRAVELLER_COUNT = 850
+LOOP_SECONDS = 10.0
+INTRO_SECONDS = 2.6
+TRAVELLER_COUNT = 900
+MAX_PORTRAIT_POINTS = 18000
 SEED = 20260319
 FONT = "ui-monospace,SFMono-Regular,Consolas,monospace"
 
 ROWS = [
     ("Subject", "Faris / Kris"),
-    ("Level", "Third-year CS student"),
-    ("Campus", "Paragon IU"),
-    ("Goal", "Aspiring Software Engineer"),
-    ("Focus", "Backend · Cloud · AI agents"),
+    ("Role", "CS Student · Aspiring SWE"),
+    ("Origin", "Cambodia"),
+    ("Education", "Paragon IU"),
     ("Status", "Building + Learning + Shipping"),
     ("ToolChain", "Cursor · Git · Docker"),
     ("Core.Lang", "Java · Python · C++ · TS"),
-    ("Core.Backend", "Spring Boot · Laravel"),
     ("Core.Frontend", "React · JavaScript"),
+    ("Core.Backend", "Spring Boot · Laravel"),
     ("Core.Database", "MySQL · PostgreSQL"),
     ("Core.Infra", "Docker · GitHub"),
     ("Grid.GitHub", "Fariscus"),
@@ -50,15 +49,15 @@ ROWS = [
 
 THEMES = {
     "dark": {
-        "bg": "#07111f",
-        "panel": "#0c1a2d",
-        "panel2": "#0f2239",
-        "line": "#29445e",
-        "muted": "#8ba6be",
-        "text": "#e4effa",
-        "portrait": "#58d8c7",
-        "chrome": "#4aa8ff",
-        "accent": "#22c55e",
+        "bg": "#0A101F",
+        "panel": "#0D1628",
+        "panel2": "#101B30",
+        "line": "#25344C",
+        "muted": "#8291A8",
+        "text": "#DDE7F5",
+        "portrait": "#AA9BEF",
+        "chrome": "#22D3EE",
+        "accent": "#10B981",
         "shadow": "#02050B",
     },
     "light": {
@@ -68,7 +67,7 @@ THEMES = {
         "line": "#CBD7E1",
         "muted": "#64748B",
         "text": "#172033",
-        "portrait": "#0f766e",
+        "portrait": "#4A3D7A",
         "chrome": "#0891B2",
         "accent": "#10B981",
         "shadow": "#AAB7C4",
@@ -100,36 +99,24 @@ def fit_value(value: str, max_width: float, font_size: float = 14) -> str:
 
 
 def make_logos() -> dict[str, Image.Image]:
-    """Create Faris-themed silhouettes (code + cloud) — not Emmi's logos."""
+    """Only the </> developer mark."""
     LOGOS.mkdir(parents=True, exist_ok=True)
     size = 400
-    logos: dict[str, Image.Image] = {}
-
-    # </> developer mark
     code = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(code)
-    stroke = 42
+    stroke = 44
     draw.line([(154, 95), (66, 200), (154, 305)], fill="black", width=stroke, joint="curve")
     draw.line([(246, 95), (334, 200), (246, 305)], fill="black", width=stroke, joint="curve")
     draw.line([(225, 72), (174, 328)], fill="black", width=stroke)
-    logos["code"] = code
-
-    # Simple cloud (cloud-engineering interest)
-    cloud = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(cloud)
-    draw.ellipse((70, 150, 210, 290), fill="black")
-    draw.ellipse((140, 110, 300, 270), fill="black")
-    draw.ellipse((220, 155, 350, 285), fill="black")
-    draw.rectangle((90, 210, 330, 300), fill="black")
-    logos["cloud"] = cloud
-
-    for name, image in logos.items():
-        image.save(LOGOS / f"{name}.png", optimize=True)
-    return logos
+    code.save(LOGOS / "code.png", optimize=True)
+    cloud = LOGOS / "cloud.png"
+    if cloud.exists():
+        cloud.unlink()
+    return {"code": code}
 
 
 def floyd_steinberg(gray: np.ndarray) -> np.ndarray:
-    """Serpentine 1-bit dither; True = lit pixel."""
+    """Serpentine 1-bit Floyd-Steinberg diffusion; True means a lit pixel."""
     work = gray.astype(np.float32) / 255.0
     out = np.zeros_like(work, dtype=bool)
     height, width = work.shape
@@ -154,43 +141,62 @@ def floyd_steinberg(gray: np.ndarray) -> np.ndarray:
     return out
 
 
-def portrait_points(theme: str, rng: np.random.Generator) -> np.ndarray:
-    """Sample dithered portrait points into the VISUAL.MAP frame."""
+def subject_crop() -> Image.Image:
+    """Tight head crop from the cutout (ignores empty transparent padding)."""
     source = Image.open(SOURCE).convert("RGBA")
-    # Head + torso crop for FarisFy5 (1033×1522, subject centered with halo).
-    w, h = source.size
-    crop = source.crop((int(w * 0.12), int(h * 0.02), int(w * 0.88), int(h * 0.72)))
-    crop = crop.resize((300, 340), Image.Resampling.LANCZOS)
-    rgb = crop.convert("RGB")
+    alpha = np.asarray(source.getchannel("A"))
+    ys, xs = np.where(alpha > 20)
+    if len(xs) == 0:
+        raise SystemExit(f"No opaque pixels in {SOURCE}")
+    pad = 8
+    x0 = max(0, int(xs.min()) - pad)
+    y0 = max(0, int(ys.min()) - pad)
+    x1 = min(source.size[0], int(xs.max()) + pad)
+    y1 = min(source.size[1], int(ys.max()) + pad)
+    content = source.crop((x0, y0, x1, y1))
+    cw, ch = content.size
+    # Include full chin + a bit of neck (0.62 was clipping the jaw).
+    box = (int(cw * 0.05), 0, int(cw * 0.95), int(ch * 0.80))
+    return content.crop(box).resize((300, 340), Image.Resampling.LANCZOS)
+
+
+def portrait_points(theme: str, rng: np.random.Generator) -> np.ndarray:
+    """Return sampled x/y banner coordinates from a 300x340 dither grid."""
+    crop = subject_crop()
     alpha = np.asarray(crop.getchannel("A"), dtype=np.float32) / 255.0
-    # Also treat near-black studio backdrop as empty.
-    lum_raw = np.asarray(ImageOps.grayscale(rgb), dtype=np.float32)
-    alpha = np.maximum(alpha, (lum_raw > 18).astype(np.float32))
 
     if theme == "dark":
-        prepared = Image.fromarray(np.uint8(np.clip(lum_raw * alpha, 0, 255)), "L")
-        select_lit = True
-        mask = Image.fromarray(np.uint8((alpha > 0.08) * 255), "L")
+        lum = np.asarray(ImageOps.grayscale(crop.convert("RGB")), dtype=np.float32)
+        # Lift shadows so the jawline stays visible (dark chin was vanishing).
+        lifted = np.clip(255.0 * np.power(np.clip(lum / 255.0, 0, 1), 0.78), 0, 255)
+        prepared = Image.fromarray(np.uint8(np.clip(lifted * alpha, 0, 255)))
+        mask = Image.fromarray(np.uint8((alpha > 0.08) * 255))
         prepared = ImageOps.equalize(prepared, mask=mask)
+        prepared = ImageEnhance.Contrast(prepared).enhance(1.28)
+        prepared = prepared.filter(ImageFilter.UnsharpMask(radius=2, percent=160, threshold=1))
+        select_lit = True
     else:
         white = Image.new("RGBA", crop.size, "white")
         white.alpha_composite(crop)
         prepared = ImageOps.grayscale(white.convert("RGB"))
-        select_lit = False
         prepared = ImageOps.autocontrast(prepared, cutoff=1)
-
-    prepared = ImageEnhance.Contrast(prepared).enhance(1.4)
-    prepared = prepared.filter(ImageFilter.UnsharpMask(radius=2, percent=160, threshold=1))
+        prepared = ImageEnhance.Contrast(prepared).enhance(1.35)
+        prepared = prepared.filter(ImageFilter.UnsharpMask(radius=2, percent=175, threshold=1))
+        select_lit = False
     bits = floyd_steinberg(np.asarray(prepared))
     active = bits if select_lit else ~bits
-    active &= alpha > 0.08
+    if theme == "dark":
+        active &= alpha > 0.08
+    else:
+        # Keep light-theme dots on the subject only (transparent → no ink).
+        active &= alpha > 0.08
 
     ys, xs = np.where(active)
     if len(xs) == 0:
         return np.zeros((0, 2), dtype=np.float32)
     points = np.column_stack((74 + xs, 154 + ys)).astype(np.float32)
-    if len(points) > 16000:
-        points = points[rng.choice(len(points), 16000, replace=False)]
+    if len(points) > MAX_PORTRAIT_POINTS:
+        points = points[rng.choice(len(points), MAX_PORTRAIT_POINTS, replace=False)]
     return points
 
 
@@ -198,7 +204,6 @@ def sample_logo_points(image: Image.Image, rng: np.random.Generator, count: int)
     alpha = np.asarray(image.getchannel("A"))
     ys, xs = np.where(alpha > 127)
     chosen = rng.choice(len(xs), count, replace=len(xs) < count)
-    # Centered ~270×270 square inside VISUAL.MAP.
     return np.column_stack((89 + xs[chosen] * 0.675, 188 + ys[chosen] * 0.675)).astype(np.float32)
 
 
@@ -237,7 +242,7 @@ def render_info_rows(colors: dict[str, str]) -> str:
     row_y = 153.0
     parts: list[str] = []
     for label, value in ROWS:
-        max_value = value_right - label_x - text_width(label, 14) - 36
+        max_value = value_right - label_x - text_width(label, 14) - 40
         value = fit_value(value, max_value)
         label_len = text_width(label, 14)
         value_len = text_width(value, 14)
@@ -266,14 +271,13 @@ def render_svg(
     n = min(TRAVELLER_COUNT, len(portrait))
     source = portrait[rng.choice(len(portrait), n, replace=False)]
     code = transport(source, logo_points["code"][:n])
-    cloud = transport(code, logo_points["cloud"][:n])
 
-    # portrait → code (dev) → cloud → portrait
-    # hold / morph / hold / morph / hold / morph / hold
-    times = [0, 2.8, 4.0, 6.2, 7.4, 9.6, 10.8, 12.0]
+    # Two states: portrait → </> → portrait
+    times = [0, 3.0, 4.2, 7.0, 8.2, 10.0]
     key_times = ";".join(num(v / LOOP_SECONDS) for v in times)
-    frames = [source, source, code, code, cloud, cloud, source, source]
-    opacity_values = "0;0;1;1;1;1;1;0"
+    frames = [source, source, code, code, source, source]
+    opacity_values = "0;0;1;1;0;0"
+    band_opacity = ".94;.94;0;0;.94;.94"
 
     parts: list[str] = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" '
@@ -283,6 +287,10 @@ def render_svg(
         '<filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">'
         f'<feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="{colors["shadow"]}" flood-opacity=".28"/>'
         "</filter>",
+        '<filter id="glow" x="-100%" y="-100%" width="300%" height="300%">'
+        f'<feGaussianBlur stdDeviation="3" result="b"/><feFlood flood-color="{colors["chrome"]}" '
+        'flood-opacity=".35"/><feComposite in2="b" operator="in"/>'
+        '<feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>',
         '<clipPath id="visualClip"><rect x="49" y="124" width="390" height="414" rx="3"/></clipPath>',
         "</defs>",
         f'<rect width="{W}" height="{H}" rx="18" fill="{colors["bg"]}"/>',
@@ -293,43 +301,40 @@ def render_svg(
         '<circle cx="59" cy="38" r="6" fill="#FEBC2E"/>'
         '<circle cx="80" cy="38" r="6" fill="#28C840"/>',
         f'<text x="590" y="43" text-anchor="middle" fill="{colors["muted"]}" '
-        f'font-family="{FONT}" font-size="13" letter-spacing=".4">faris.profile — learning mode</text>',
-        # Left panel
+        f'font-family="{FONT}" font-size="13" letter-spacing=".4">profile.sh --live</text>',
         f'<rect x="35" y="88" width="418" height="472" rx="6" fill="{colors["panel2"]}" stroke="{colors["line"]}"/>',
         f'<path d="M35 124H453" stroke="{colors["line"]}"/>',
         f'<text x="49" y="111" fill="{colors["chrome"]}" font-family="{FONT}" font-size="13" '
         'font-weight="700" letter-spacing="1.2">VISUAL.MAP</text>',
         f'<text x="438" y="111" text-anchor="end" fill="{colors["muted"]}" font-family="{FONT}" '
         'font-size="11">300×340 / 1-BIT</text>',
-        f'<path d="M49 141h12M49 141v12M439 141h-12M439 141v12M49 521h12M49 521v-12'
-        f'M439 521h-12M439 521v-12" fill="none" stroke="{colors["chrome"]}" opacity=".55"/>',
+        f'<path d="M49 141h12M49 141v12M439 141h-12M439 141v12M49 539h12M49 539v-12'
+        f'M439 539h-12M439 539v-12" fill="none" stroke="{colors["chrome"]}" opacity=".55"/>',
         '<g clip-path="url(#visualClip)" shape-rendering="crispEdges">',
         '<g opacity="1">',
     ]
 
-    # Portrait drift bands (visible at rest; fade while travellers take over).
     code_centroid = code.mean(axis=0)
-    band_ids = rng.integers(0, 80, size=len(portrait))
-    noise = rng.normal(0, 4, size=(80, 2))
-    for band in range(80):
+    band_ids = rng.integers(0, 94, size=len(portrait))
+    noise = rng.normal(0, 3.5, size=(94, 2))
+    for band in range(94):
         pts = portrait[band_ids == band]
         if not len(pts):
             continue
         centroid = pts.mean(axis=0)
-        delta = (code_centroid - centroid) * 0.16 + noise[band]
+        delta = (code_centroid - centroid) * 0.14 + noise[band]
         d = point_path(pts)
         parts.append(
             f'<path d="{d}" fill="none" stroke="{colors["portrait"]}" stroke-width="1" opacity=".94">'
             f'<animateTransform attributeName="transform" type="translate" begin="{INTRO_SECONDS}s" '
             f'dur="{LOOP_SECONDS}s" repeatCount="indefinite" calcMode="linear" '
             f'keyTimes="{key_times}" values="0 0;0 0;{num(delta[0])} {num(delta[1])};'
-            f'{num(delta[0])} {num(delta[1])};0 0;0 0;0 0;0 0"/>'
+            f'{num(delta[0])} {num(delta[1])};0 0;0 0"/>'
             f'<animate attributeName="opacity" begin="{INTRO_SECONDS}s" dur="{LOOP_SECONDS}s" '
             f'repeatCount="indefinite" keyTimes="{key_times}" '
-            'values=".94;.94;0;0;0;0;.94;.94"/></path>'
+            f'values="{band_opacity}"/></path>'
         )
 
-    # Travellers: portrait → </> → cloud → portrait
     for i in range(n):
         positions = animate_values(frames, i)
         parts.append(
@@ -343,19 +348,18 @@ def render_svg(
         )
     parts.append("</g>")
 
-    # Intro shimmer: face appears in scattered groups once.
-    intro_ids = rng.integers(0, 50, size=len(portrait))
-    order = rng.permutation(50)
-    starts = np.empty(50)
-    starts[order] = np.linspace(0.05, 1.1, 50)
-    for group in range(50):
+    intro_ids = rng.integers(0, 60, size=len(portrait))
+    order = rng.permutation(60)
+    starts = np.empty(60)
+    starts[order] = np.linspace(0.05, 1.15, 60)
+    for group in range(60):
         pts = portrait[intro_ids == group]
         if not len(pts):
             continue
         parts.append(
             f'<path d="{point_path(pts)}" fill="none" stroke="{colors["portrait"]}" '
             'stroke-width="1" opacity="0">'
-            f'<animate attributeName="opacity" begin="{num(starts[group])}s" dur=".7s" '
+            f'<animate attributeName="opacity" begin="{num(starts[group])}s" dur=".75s" '
             'values="0;1" fill="freeze"/>'
             f'<animate attributeName="opacity" begin="{num(INTRO_SECONDS - 0.12)}s" dur=".12s" '
             'values="1;0" fill="freeze"/>'
@@ -365,15 +369,14 @@ def render_svg(
     parts.extend(
         [
             "</g>",
-            f'<text x="49" y="551" fill="{colors["muted"]}" font-family="{FONT}" font-size="10">'
-            f"PTS {len(portrait):05d} · PIC→DEV→CLOUD→PIC</text>",
-            # Right panel
+            f'<text x="58" y="551" fill="{colors["muted"]}" font-family="{FONT}" font-size="10">'
+            f"PTS {len(portrait):05d} · FS/SERPENTINE</text>",
             f'<rect x="474" y="88" width="672" height="472" rx="6" fill="{colors["panel2"]}" '
             f'stroke="{colors["line"]}"/>',
             f'<path d="M474 124H1146" stroke="{colors["line"]}"/>',
             f'<text x="490" y="111" fill="{colors["chrome"]}" font-family="{FONT}" font-size="13" '
             'font-weight="700" letter-spacing="1.2">SYSTEM.INFO</text>',
-            '<circle class="live" cx="915" cy="106" r="4" fill="#FF4D5A"/>',
+            '<g filter="url(#glow)"><circle class="live" cx="915" cy="106" r="4" fill="#FF4D5A"/></g>',
             f'<text x="927" y="111" fill="#FF4D5A" font-family="{FONT}" font-size="12" '
             'font-weight="700">LIVE</text>',
             f'<rect x="982" y="94" width="146" height="24" rx="12" fill="{colors["chrome"]}" '
@@ -383,7 +386,7 @@ def render_svg(
             render_info_rows(colors),
             f'<path d="M490 530H1130" stroke="{colors["line"]}"/>',
             f'<text x="491" y="548" fill="{colors["accent"]}" font-family="{FONT}" font-size="11">'
-            "● SYSTEM READY TO LEARN</text>",
+            "● ALL SYSTEMS NOMINAL</text>",
             f'<text x="1128" y="548" text-anchor="end" fill="{colors["muted"]}" '
             f'font-family="{FONT}" font-size="11">UTC+7 · CAMBODIA NODE</text>',
             "</svg>",
@@ -394,11 +397,15 @@ def render_svg(
 
 def main() -> None:
     if not SOURCE.exists():
-        raise SystemExit(f"Missing portrait: {SOURCE}")
+        raise SystemExit(f"Missing source portrait: {SOURCE}")
 
+    print(f"using portrait: {SOURCE.relative_to(ROOT)}")
     ASSETS.mkdir(parents=True, exist_ok=True)
     DATA.mkdir(parents=True, exist_ok=True)
     logos = make_logos()
+
+    for leftover in DATA.glob("cloud-*.npy"):
+        leftover.unlink()
 
     portraits: dict[str, np.ndarray] = {}
     for index, theme in enumerate(THEMES):
@@ -419,10 +426,7 @@ def main() -> None:
         svg = render_svg(theme, portraits[theme], sampled, rng)
         output = ASSETS / f"banner-{theme}.svg"
         output.write_text(svg, encoding="utf-8")
-        print(
-            f"wrote {output.relative_to(ROOT)} "
-            f"({output.stat().st_size / 1024:.1f} KiB)"
-        )
+        print(f"wrote {output.relative_to(ROOT)} ({output.stat().st_size / 1024:.1f} KiB)")
 
 
 if __name__ == "__main__":
