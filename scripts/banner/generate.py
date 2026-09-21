@@ -28,9 +28,12 @@ W, H = 1180, 610
 LOOP_SECONDS = 10.0
 INTRO_SECONDS = 2.6
 TRAVELLER_COUNT = 900
-MAX_PORTRAIT_POINTS = 18000
+MAX_PORTRAIT_POINTS = 20000
 SEED = 20260319
 FONT = "ui-monospace,SFMono-Regular,Consolas,monospace"
+# Slightly darker midtones than Emmi's raw plate so Faris's evenly-lit skin
+# still lays down readable face ink after FS (pale cheeks were washing out).
+EMMI_LUM_PERCENTILES = (40.0, 145.0, 215.0)
 
 ROWS = [
     ("Subject", "Faris / Kris"),
@@ -145,7 +148,7 @@ def floyd_steinberg(gray: np.ndarray) -> np.ndarray:
 
 
 def subject_crop() -> Image.Image:
-    """Full head-and-shoulders cutout, centered in the 300×340 VISUAL.MAP lattice."""
+    """A centered head-and-shoulders cutout that fits the 300×340 VISUAL.MAP frame."""
     source = Image.open(SOURCE).convert("RGBA")
     alpha = np.asarray(source.getchannel("A"))
     ys, xs = np.where(alpha > 20)
@@ -156,90 +159,135 @@ def subject_crop() -> Image.Image:
     y0 = max(0, int(ys.min()) - pad)
     x1 = min(source.size[0], int(xs.max()) + pad)
     y1 = min(source.size[1], int(ys.max()) + pad)
-    # Use the full subject (hair → shoulders/chest), not a tight face crop.
+    # Full cutout — keep shoulders (no chest trim).
     head = source.crop((x0, y0, x1, y1))
+    hw, hh = head.size
 
     tw, th = 300, 340
-    hw, hh = head.size
-    # Fill the VISUAL.MAP frame — small padding only.
-    scale = min(tw / hw, th / hh) * 0.99
-    nw, nh = max(1, int(round(hw * scale))), max(1, int(round(hh * scale)))
+    # Face mid-x in crop coords (upper half) so hair/strap asymmetry doesn't shift us.
+    face = alpha[y0: y0 + max(1, int((y1 - y0) * 0.55)), x0:x1] > 20
+    fy, fx = np.where(face)
+    face_cx = float(fx.min() + fx.max()) / 2.0 if len(fx) else hw / 2.0
+
+    # Fill most of the frame so shoulders read clearly; slight side clip is OK.
+    scale = (th * 0.88) / hh
+    nw = max(1, int(round(hw * scale)))
+    nh = max(1, int(round(hh * scale)))
     resized = head.resize((nw, nh), Image.Resampling.LANCZOS)
 
     a = np.asarray(resized.getchannel("A"))
-    ys, xs = np.where(a > 20)
-    if len(xs):
-        cx = (xs.min() + xs.max()) / 2.0
-        cy = (ys.min() + ys.max()) / 2.0
-        ox = int(round(tw / 2 - cx))
-        oy = int(round(th / 2 - cy))
-    else:
-        ox, oy = (tw - nw) // 2, (th - nh) // 2
+    ys2, xs2 = np.where(a > 20)
+    rcx = face_cx * (nw / hw)
+    rcy = (ys2.min() + ys2.max()) / 2.0
+    ox = int(round(tw / 2 - rcx))
+    oy = int(round(th / 2 - rcy))
 
     canvas = Image.new("RGBA", (tw, th), (0, 0, 0, 0))
     canvas.paste(resized, (ox, oy), resized)
     return canvas
 
 
+def match_subject_luminance(gray: np.ndarray, mask: np.ndarray,
+                            target: tuple[float, float, float] = EMMI_LUM_PERCENTILES
+                            ) -> np.ndarray:
+    """Piecewise-linear map of subject p10/p50/p90 onto the sample's range."""
+    src = gray[mask]
+    if src.size == 0:
+        return gray
+    s10, s50, s90 = np.percentile(src, [10, 50, 90])
+    t10, t50, t90 = target
+    if s90 <= s10 + 1e-3:
+        return gray
+
+    def warp(v: np.ndarray) -> np.ndarray:
+        out = np.empty_like(v)
+        lo = v <= s50
+        hi = ~lo
+        # Avoid div-by-zero on flat segments.
+        denom_lo = max(s50 - s10, 1e-3)
+        denom_hi = max(s90 - s50, 1e-3)
+        out[lo] = t10 + (v[lo] - s10) * (t50 - t10) / denom_lo
+        out[hi] = t50 + (v[hi] - s50) * (t90 - t50) / denom_hi
+        return np.clip(out, 0, 255)
+
+    result = gray.copy()
+    result[mask] = warp(src)
+    return result
+
+
+def sample_portrait_dots(xs: np.ndarray, ys: np.ndarray, weight_src: np.ndarray,
+                         theme: str, rng: np.random.Generator) -> np.ndarray:
+    """Downsample to MAX_PORTRAIT_POINTS, preferring facial structure over shirt."""
+    n = len(xs)
+    if n <= MAX_PORTRAIT_POINTS:
+        return np.column_stack((xs, ys)).astype(np.float32)
+    vals = weight_src[ys, xs] / 255.0
+    y_norm = ys / 339.0
+    if theme == "light":
+        # Darker prepared pixels = stronger ink features; mild upper bias.
+        w = np.power(np.clip(1.2 - vals, 0.05, None), 1.55) * (1.12 - 0.22 * y_norm)
+    else:
+        # Lit dots carry the face on dark theme.
+        w = np.power(np.clip(0.15 + vals, 0.05, None), 1.35) * (1.10 - 0.18 * y_norm)
+    w = np.clip(w, 1e-6, None)
+    w /= w.sum()
+    pick = rng.choice(n, MAX_PORTRAIT_POINTS, replace=False, p=w)
+    return np.column_stack((xs[pick], ys[pick])).astype(np.float32)
+
+
 def portrait_points(theme: str, rng: np.random.Generator) -> np.ndarray:
     """Return sampled x/y banner coordinates from a 300x340 dither grid."""
     crop = subject_crop()
     alpha = np.asarray(crop.getchannel("A"), dtype=np.float32) / 255.0
+    mask = alpha > 0.08
 
     if theme == "dark":
         lum = np.asarray(ImageOps.grayscale(crop.convert("RGB")), dtype=np.float32)
-        # Lift shadows so the jawline stays visible (dark chin was vanishing).
-        lifted = np.clip(255.0 * np.power(np.clip(lum / 255.0, 0, 1), 0.78), 0, 255)
-        prepared = Image.fromarray(np.uint8(np.clip(lifted * alpha, 0, 255)))
-        mask = Image.fromarray(np.uint8((alpha > 0.08) * 255))
-        prepared = ImageOps.equalize(prepared, mask=mask)
-        prepared = ImageEnhance.Contrast(prepared).enhance(1.28)
-        prepared = prepared.filter(ImageFilter.UnsharpMask(radius=2, percent=160, threshold=1))
+        # Remap into the sample's lit range so skin keeps density after equalize.
+        lum = match_subject_luminance(lum, mask)
+        prepared = Image.fromarray(np.uint8(np.clip(lum * alpha, 0, 255)))
+        mask_img = Image.fromarray(np.uint8(mask * 255))
+        prepared = ImageOps.equalize(prepared, mask=mask_img)
+        prepared = ImageEnhance.Contrast(prepared).enhance(1.40)
+        prepared = prepared.filter(ImageFilter.UnsharpMask(radius=2, percent=185, threshold=1))
         select_lit = True
     else:
-        # Same light-theme pipeline as the sample: white paper + autocontrast + FS.
-        # (Earlier ink-crush made a solid blob; this keeps face detail like Emmi.)
+        # White paper + luminance match to Emmi + the sample's FS enhance chain.
         white = Image.new("RGBA", crop.size, "white")
         white.alpha_composite(crop)
         gray = np.asarray(ImageOps.grayscale(white.convert("RGB")), dtype=np.float32)
-        mask = alpha > 0.08
-        # Soften pale gray shirt so clothing still prints dots without crushing face.
+        gray = match_subject_luminance(gray, mask)
+        # Lift the pale shirt so it doesn't steal the 20k ink budget from the face.
         rgb = np.asarray(crop.convert("RGB"), dtype=np.float32)
         r, g, b = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
         max_c = np.maximum(np.maximum(r, g), b)
         min_c = np.minimum(np.minimum(r, g), b)
         sat = (max_c - min_c) / np.maximum(max_c, 1.0)
-        shirt = mask & (sat < 0.14) & (gray > 120)
+        row = np.arange(gray.shape[0])[:, None]
+        shirt = mask & (sat < 0.12) & (gray > 140) & (row > 250)
         gray = gray.copy()
-        gray[shirt] *= 0.72
+        gray[shirt] = np.clip(gray[shirt] * 1.15, 0, 255)
         gray = np.where(mask, gray, 255.0)
         prepared = Image.fromarray(np.uint8(np.clip(gray, 0, 255)))
         prepared = ImageOps.autocontrast(prepared, cutoff=1)
-        prepared = ImageEnhance.Contrast(prepared).enhance(1.45)
-        prepared = prepared.filter(ImageFilter.UnsharpMask(radius=2, percent=185, threshold=1))
+        prepared = ImageEnhance.Contrast(prepared).enhance(1.48)
+        prepared = prepared.filter(ImageFilter.UnsharpMask(radius=2, percent=190, threshold=1))
         arr = np.asarray(prepared).astype(np.float32)
         prepared = Image.fromarray(np.uint8(np.where(mask, arr, 255.0)))
         select_lit = False
+
+    prepared_arr = np.asarray(prepared).astype(np.float32)
     bits = floyd_steinberg(np.asarray(prepared))
     active = bits if select_lit else ~bits
-    if theme == "dark":
-        active &= alpha > 0.08
-    else:
-        # Keep light-theme dots on the subject only (transparent → no ink).
-        active &= alpha > 0.08
+    active &= mask
 
     ys, xs = np.where(active)
     if len(xs) == 0:
         return np.zeros((0, 2), dtype=np.float32)
-    points = np.column_stack((74 + xs, 154 + ys)).astype(np.float32)
-    # Nudge so the silhouette bbox sits in the middle of VISUAL.MAP.
-    cell_cx, cell_cy = 74 + 150.0, 154 + 170.0
-    bx = (points[:, 0].min() + points[:, 0].max()) / 2.0
-    by = (points[:, 1].min() + points[:, 1].max()) / 2.0
-    points = points + np.array([cell_cx - bx, cell_cy - by], dtype=np.float32)
-    if len(points) > MAX_PORTRAIT_POINTS:
-        points = points[rng.choice(len(points), MAX_PORTRAIT_POINTS, replace=False)]
-    return points
+    grid = sample_portrait_dots(xs, ys, prepared_arr, theme, rng)
+    # Keep the integer 300×340 lattice aligned (no bbox nudge) so FS dots stay
+    # crisp like the sample — fractional shifts were collapsing neighbouring ink.
+    return np.column_stack((74 + grid[:, 0], 154 + grid[:, 1])).astype(np.float32)
 
 
 def sample_logo_points(image: Image.Image, rng: np.random.Generator, count: int) -> np.ndarray:
@@ -369,7 +417,7 @@ def render_svg(
         delta = (code_centroid - centroid) * 0.14 + noise[band]
         d = point_path(pts)
         parts.append(
-            f'<path d="{d}" fill="none" stroke="{colors["portrait"]}" stroke-width="1" opacity=".94">'
+            f'<path d="{d}" fill="none" stroke="{colors["portrait"]}" stroke-width="1.15" opacity="1">'
             f'<animateTransform attributeName="transform" type="translate" begin="{INTRO_SECONDS}s" '
             f'dur="{LOOP_SECONDS}s" repeatCount="indefinite" calcMode="linear" '
             f'keyTimes="{key_times}" values="0 0;0 0;{num(delta[0])} {num(delta[1])};'
